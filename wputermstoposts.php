@@ -2,8 +2,8 @@
 
 /*
 Plugin Name: WPU Terms to Posts
-Description: Link terms to posts from the term page.
-Version: 0.1.0
+Description: Link terms to posts from the term edit page.
+Version: 0.2.0
 Author: Darklg
 Author URI: http://darklg.me/
 License: MIT License
@@ -15,12 +15,19 @@ class WPUTermsToPosts {
     private $taxonomies;
 
     public function __construct() {
+        add_action('plugins_loaded', array(&$this,
+            'plugins_loaded'
+        ));
         add_action('init', array(&$this,
             'init'
         ));
         add_action('admin_post_change_taxonomy', array(&$this,
             'change_taxonomy'
         ));
+    }
+
+    public function plugins_loaded() {
+        load_plugin_textdomain('wputermstoposts', false, dirname(plugin_basename(__FILE__)) . '/lang/');
     }
 
     public function init() {
@@ -30,8 +37,28 @@ class WPUTermsToPosts {
             )
         ));
 
-        /* PRepre */
         foreach ($this->taxonomies as $id => $taxonomy) {
+
+            /* Default post types */
+            if (!isset($taxonomy['post_types'])) {
+                $this->taxonomies[$id]['post_types'] = array('post');
+            }
+            /* Default post types */
+            if (!isset($taxonomy['fields'])) {
+                $this->taxonomies[$id]['fields'] = array(
+                    'post_status' => array(
+                        'name' => __('Status', 'wputermstoposts')
+                    ),
+                    'post_type' => array(
+                        'name' => __('Post type', 'wputermstoposts')
+                    ),
+                    'post_date' => array(
+                        'name' => __('Date', 'wputermstoposts')
+                    )
+                );
+            }
+
+            /* Insert before form */
             add_action($id . '_pre_edit_form', array(&$this,
                 'linked_posts_before_form'
             ));
@@ -49,37 +76,39 @@ class WPUTermsToPosts {
 
         /* Check nonce */
         if (!isset($_POST['wputtp_noncename']) || !wp_verify_nonce($_POST['wputtp_noncename'], plugin_basename(__FILE__))) {
-            return;
+            wp_safe_redirect(wp_get_referer());
+            die;
         }
 
         /* Check term & taxonomy */
         if (!isset($_REQUEST['term'], $_REQUEST['taxonomy']) || !is_numeric($_REQUEST['term'])) {
-            return;
+            wp_safe_redirect(wp_get_referer());
+            die;
         }
 
         $term = get_term_by('id', $_REQUEST['term'], $_REQUEST['taxonomy']);
         $taxonomy = get_taxonomy($term->taxonomy);
 
         if (!is_object($term) || !is_object($taxonomy) || !current_user_can($taxonomy->cap->manage_terms)) {
-            return;
+            wp_safe_redirect(wp_get_referer());
+            die;
         }
 
         /* Get results */
 
-        $ids_ok = array_keys($_REQUEST['wputtp_results']);
-        $filtered_results = $this->get_filtered_results($term, array('only_ids' => true));
+        $ids_ok = $_REQUEST['wputtp_results'];
+        $initial_ids = $_REQUEST['wputtp_values'];
 
-        foreach ($filtered_results as $post_id => $result) {
-            $result_in_category = $result['term_taxonomy_id'] == $term->term_id;
+        foreach ($initial_ids as $post_id => $item_in_category) {
 
             /* The post was checked but didn't have this term */
-            if (in_array($post_id, $ids_ok) && !$result_in_category) {
+            if (array_key_exists($post_id, $ids_ok) && !$item_in_category) {
                 /* Append term */
                 wp_set_object_terms($post_id, $term->term_id, $term->taxonomy, true);
             }
 
             /* The post was not checked but had this term */
-            if (!in_array($post_id, $ids_ok) && $result_in_category) {
+            if (!array_key_exists($post_id, $ids_ok) && $item_in_category) {
                 $terms = wp_get_post_terms($post_id, $term->taxonomy);
                 $terms_ids = array();
                 /* Keep all terms but the current one */
@@ -109,28 +138,40 @@ class WPUTermsToPosts {
         if (!array_key_exists($term->taxonomy, $this->taxonomies)) {
             return;
         }
+        $tax_details = $this->taxonomies[$term->taxonomy];
 
         $filtered_results = $this->get_filtered_results($term);
 
         /* Open wrap */
         echo '<div class="wrap">';
-        echo '<h1>' . __('Linked posts') . '</h1>';
+        echo '<h1>' . __('Linked posts', 'wputermstoposts') . '</h1>';
         echo '<form action="' . admin_url('admin-post.php') . '" method="post">';
         echo '<table class="wp-list-table widefat striped">';
 
         /* Heading */
         echo '<thead>';
-        echo '<tr><th></th><th>' . __('Post name') . '</th><th>' . __('Post type') . '</th><th>' . __('Post status') . '</th></tr>';
+        echo '<tr><th></th><th>' . __('Post title', 'wputermstoposts') . '</th>';
+        foreach ($tax_details['fields'] as $id => $field) {
+            if (!isset($field['name'])) {
+                $field['name'] = $id;
+            }
+            echo '<th>' . $field['name'] . '</th>';
+        }
+        echo '</tr>';
         echo '</thead>';
 
         /* Results */
         echo '<tbody>';
         foreach ($filtered_results as $result) {
             echo '<tr>';
-            echo '<td><input type="checkbox" id="wputtp_result_' . $result['ID'] . '" name="wputtp_results[' . $result['ID'] . ']" ' . checked($result['term_taxonomy_id'], $term->term_id, false) . ' value="" /></td>';
+            echo '<td>';
+            echo '<input type="hidden" name="wputtp_values[' . $result['ID'] . ']"  value="' . ($result['term_taxonomy_id'] == $term->term_id ? '1' : '0') . '" />';
+            echo '<input type="checkbox" name="wputtp_results[' . $result['ID'] . ']" id="wputtp_result_' . $result['ID'] . '" ' . checked($result['term_taxonomy_id'], $term->term_id, false) . ' value="" />';
+            echo '</td>';
             echo '<td><label for="wputtp_result_' . $result['ID'] . '">' . $result['post_title'] . '</label></td>';
-            echo '<td>' . $result['post_type'] . '</td>';
-            echo '<td>' . $result['post_status'] . '</td>';
+            foreach ($tax_details['fields'] as $id => $field) {
+                echo '<td>' . (isset($result[$id]) ? $result[$id] : '-') . '</td>';
+            }
             echo '</tr>';
         }
         echo '</tbody>';
@@ -141,7 +182,7 @@ class WPUTermsToPosts {
         echo '<input type="hidden" name="action" value="change_taxonomy" />';
         echo '<input type="hidden" name="term" value="' . $term->term_id . '">';
         echo '<input type="hidden" name="taxonomy" value="' . $term->taxonomy . '">';
-        submit_button(__('Save'));
+        submit_button(__('Save', 'wputermstoposts'));
         echo '</form>';
         echo '</div>';
 
@@ -167,8 +208,15 @@ class WPUTermsToPosts {
             return array();
         }
         $tax_details = $this->taxonomies[$term->taxonomy];
+        $custom_fields = '';
+        if (isset($tax_details['fields'])) {
+            foreach ($tax_details['fields'] as $field_id => $field) {
+                $custom_fields .= 'p.' . $field_id . ',';
+            }
+        }
 
-        $fields = 'p.ID, p.post_title, p.post_type, p.post_status, t.term_taxonomy_id';
+        $fields = 'p.ID, p.post_title, ' . $custom_fields . ' t.term_taxonomy_id';
+
         if (is_array($opts) && isset($opts['only_ids'])) {
             $fields = 'p.ID, t.term_taxonomy_id';
         }
