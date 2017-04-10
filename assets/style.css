@@ -1,0 +1,30 @@
+@charset "UTF-8";
+
+/* ----------------------------------------------------------
+  Table
+---------------------------------------------------------- */
+
+/* Hide lines
+-------------------------- */
+
+#wputermstoposts_table tr[data-line][data-hidden="1"] {
+    display: none;
+}
+
+/* Overflow
+-------------------------- */
+
+.wputermstoposts_table_wrap {
+    max-height: 300px;
+    overflow: auto;
+}
+
+/* ----------------------------------------------------------
+  Filter
+---------------------------------------------------------- */
+
+.wputermstoposts_filter {
+    margin: 1em 0;
+    text-align: right;
+    line-height: 25px;
+}

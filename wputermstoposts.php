@@ -3,7 +3,7 @@
 /*
 Plugin Name: WPU Terms to Posts
 Description: Link terms to posts from the term edit page.
-Version: 0.2.0
+Version: 0.3.0
 Author: Darklg
 Author URI: http://darklg.me/
 License: MIT License
@@ -13,6 +13,7 @@ License URI: http://opensource.org/licenses/MIT
 class WPUTermsToPosts {
     private $query;
     private $taxonomies;
+    private $version = '0.3.0';
 
     public function __construct() {
         add_action('plugins_loaded', array(&$this,
@@ -36,6 +37,8 @@ class WPUTermsToPosts {
                 'post_types' => array('post')
             )
         ));
+
+        add_action('admin_enqueue_scripts', array(&$this, 'load_assets'));
 
         foreach ($this->taxonomies as $id => $taxonomy) {
 
@@ -63,6 +66,19 @@ class WPUTermsToPosts {
                 'linked_posts_before_form'
             ));
         }
+    }
+
+    /* ----------------------------------------------------------
+      Load assets
+    ---------------------------------------------------------- */
+
+    public function load_assets($hook) {
+        if ('term.php' != $hook) {
+            return;
+        }
+
+        wp_enqueue_script($this->options['id'] . '_scripts', plugins_url('assets/script.js', __FILE__), array('jquery'), $this->version);
+        wp_enqueue_style($this->options['id'] . '_style', plugins_url('assets/style.css', __FILE__), false, $this->version);
     }
 
     /* ----------------------------------------------------------
@@ -146,7 +162,8 @@ class WPUTermsToPosts {
         echo '<div class="wrap">';
         echo '<h1>' . __('Linked posts', 'wputermstoposts') . '</h1>';
         echo '<form action="' . admin_url('admin-post.php') . '" method="post">';
-        echo '<table class="wp-list-table widefat striped">';
+        echo '<div class="wputermstoposts_table_wrap">';
+        echo '<table id="wputermstoposts_table" class="wp-list-table widefat striped">';
 
         /* Heading */
         echo '<thead>';
@@ -163,7 +180,7 @@ class WPUTermsToPosts {
         /* Results */
         echo '<tbody>';
         foreach ($filtered_results as $result) {
-            echo '<tr>';
+            echo '<tr data-line="' . esc_attr(strtolower($result['post_title'])) . '">';
             echo '<td>';
             echo '<input type="hidden" name="wputtp_values[' . $result['ID'] . ']"  value="' . ($result['term_taxonomy_id'] == $term->term_id ? '1' : '0') . '" />';
             echo '<input type="checkbox" name="wputtp_results[' . $result['ID'] . ']" id="wputtp_result_' . $result['ID'] . '" ' . checked($result['term_taxonomy_id'], $term->term_id, false) . ' value="" />';
@@ -178,6 +195,8 @@ class WPUTermsToPosts {
 
         /* Close wrap */
         echo '</table>';
+        echo '</div>';
+        echo '<div class="wputermstoposts_filter"><label for="wputermstoposts_s">' . __('Filter:', 'wputermstoposts') . '</label> <input id="wputermstoposts_s" type="text" value="" /></div>';
         wp_nonce_field(plugin_basename(__FILE__), 'wputtp_noncename');
         echo '<input type="hidden" name="action" value="change_taxonomy" />';
         echo '<input type="hidden" name="term" value="' . $term->term_id . '">';

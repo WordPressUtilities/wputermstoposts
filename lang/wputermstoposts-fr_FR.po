@@ -1,7 +1,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: \n"
-"POT-Creation-Date: 2017-02-26 20:29+0100\n"
+"POT-Creation-Date: 2017-04-10 23:35+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: Darklg <darklg.blog@gmail.com>\n"
 "Language-Team: \n"
@@ -15,26 +15,30 @@ msgstr ""
 "X-Poedit-KeywordsList: __;_e\n"
 "X-Poedit-SearchPath-0: ../.\n"
 
-#: .././wputermstoposts.php:50
+#: .././wputermstoposts.php:52
 msgid "Status"
 msgstr "Statut"
 
-#: .././wputermstoposts.php:53
+#: .././wputermstoposts.php:55
 msgid "Post type"
 msgstr "Type de post"
 
-#: .././wputermstoposts.php:56
+#: .././wputermstoposts.php:58
 msgid "Date"
 msgstr "Date"
 
-#: .././wputermstoposts.php:147
+#: .././wputermstoposts.php:162
 msgid "Linked posts"
 msgstr "Articles liés"
 
-#: .././wputermstoposts.php:153
+#: .././wputermstoposts.php:169
 msgid "Post title"
 msgstr "Titre de l'article"
 
-#: .././wputermstoposts.php:185
+#: .././wputermstoposts.php:198
+msgid "Filter:"
+msgstr "Filtrer :"
+
+#: .././wputermstoposts.php:203
 msgid "Save"
 msgstr "Enregistrer"
