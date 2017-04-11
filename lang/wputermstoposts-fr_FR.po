@@ -1,7 +1,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: \n"
-"POT-Creation-Date: 2017-04-10 23:35+0200\n"
+"POT-Creation-Date: 2017-04-11 16:43+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: Darklg <darklg.blog@gmail.com>\n"
 "Language-Team: \n"
@@ -15,30 +15,37 @@ msgstr ""
 "X-Poedit-KeywordsList: __;_e\n"
 "X-Poedit-SearchPath-0: ../.\n"
 
-#: .././wputermstoposts.php:52
+#: .././wputermstoposts.php:55
 msgid "Status"
 msgstr "Statut"
 
-#: .././wputermstoposts.php:55
+#: .././wputermstoposts.php:58
 msgid "Post type"
 msgstr "Type de post"
 
-#: .././wputermstoposts.php:58
+#: .././wputermstoposts.php:61
 msgid "Date"
 msgstr "Date"
 
-#: .././wputermstoposts.php:162
-msgid "Linked posts"
-msgstr "Articles liés"
-
-#: .././wputermstoposts.php:169
+#: .././wputermstoposts.php:167
 msgid "Post title"
 msgstr "Titre de l'article"
 
-#: .././wputermstoposts.php:198
+#: .././wputermstoposts.php:177
+msgid "Linked posts"
+msgstr "Articles liés"
+
+#: .././wputermstoposts.php:180
+msgid "Linked posts were successfully updated"
+msgstr "Les articles liés ont été mis à jour avec succès"
+
+#: .././wputermstoposts.php:230
 msgid "Filter:"
 msgstr "Filtrer :"
 
-#: .././wputermstoposts.php:203
+#: .././wputermstoposts.php:235
 msgid "Save"
 msgstr "Enregistrer"
+
+#~ msgid "Linked terms updated"
+#~ msgstr "Articles liés"

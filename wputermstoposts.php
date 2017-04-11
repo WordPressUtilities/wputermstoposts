@@ -3,7 +3,7 @@
 /*
 Plugin Name: WPU Terms to Posts
 Description: Link terms to posts from the term edit page.
-Version: 0.3.0
+Version: 0.4.0
 Author: Darklg
 Author URI: http://darklg.me/
 License: MIT License
@@ -13,7 +13,9 @@ License URI: http://opensource.org/licenses/MIT
 class WPUTermsToPosts {
     private $query;
     private $taxonomies;
-    private $version = '0.3.0';
+    private $version = '0.4.0';
+    private $order_list = array('DESC', 'ASC');
+    private $orderby_list = array('post_date', 'post_title', 'post_status', 'ID');
 
     public function __construct() {
         add_action('plugins_loaded', array(&$this,
@@ -77,8 +79,8 @@ class WPUTermsToPosts {
             return;
         }
 
-        wp_enqueue_script($this->options['id'] . '_scripts', plugins_url('assets/script.js', __FILE__), array('jquery'), $this->version);
-        wp_enqueue_style($this->options['id'] . '_style', plugins_url('assets/style.css', __FILE__), false, $this->version);
+        wp_enqueue_script('wputermstoposts_scripts', plugins_url('assets/script.js', __FILE__), array('jquery'), $this->version);
+        wp_enqueue_style('wputermstoposts_style', plugins_url('assets/style.css', __FILE__), false, $this->version);
     }
 
     /* ----------------------------------------------------------
@@ -137,7 +139,7 @@ class WPUTermsToPosts {
             }
         }
 
-        wp_safe_redirect(wp_get_referer());
+        wp_safe_redirect(wp_get_referer() . '&wputermstoposts_success=1');
         die;
     }
 
@@ -156,26 +158,55 @@ class WPUTermsToPosts {
         }
         $tax_details = $this->taxonomies[$term->taxonomy];
 
-        $filtered_results = $this->get_filtered_results($term);
+        $opts = array(
+            'orderby' => isset($_GET['orderby']) && in_array($_GET['orderby'], $this->orderby_list) ? $_GET['orderby'] : $this->orderby_list[0],
+            'order' => isset($_GET['order']) && in_array($_GET['order'], $this->order_list) ? $_GET['order'] : $this->order_list[0]
+        );
+
+        $field_title = array(
+            'post_title' => array('name' => __('Post title', 'wputermstoposts'))
+        );
+
+        $current_page_url = 'term.php?tag_ID=' . esc_html($_GET['tag_ID']);
+        $current_page_url .= '&taxonomy=' . esc_html($_GET['taxonomy']);
+
+        $filtered_results = $this->get_filtered_results($term, $opts);
 
         /* Open wrap */
         echo '<div class="wrap">';
         echo '<h1>' . __('Linked posts', 'wputermstoposts') . '</h1>';
+
+        if (isset($_GET['wputermstoposts_success']) && $_GET['wputermstoposts_success'] == '1') {
+            echo '<div id="message" class="updated"><p>' . __('Linked posts were successfully updated', 'wputermstoposts') . '</p></div>';
+        }
+
         echo '<form action="' . admin_url('admin-post.php') . '" method="post">';
         echo '<div class="wputermstoposts_table_wrap">';
         echo '<table id="wputermstoposts_table" class="wp-list-table widefat striped">';
 
         /* Heading */
         echo '<thead>';
-        echo '<tr><th></th><th>' . __('Post title', 'wputermstoposts') . '</th>';
+        echo '<tr><th></th>';
+
+        $tax_details['fields'] = array_merge($field_title, $tax_details['fields']);
         foreach ($tax_details['fields'] as $id => $field) {
             if (!isset($field['name'])) {
                 $field['name'] = $id;
             }
-            echo '<th>' . $field['name'] . '</th>';
+            $_field_name = $field['name'];
+            if (in_array($id, $this->orderby_list)) {
+                $_field_content = $_field_name;
+                if ($opts['orderby'] == $id) {
+                    $_field_content .= ' ' . ($opts['order'] == 'ASC' ? '▴' : '▾');
+                }
+                $_field_order = admin_url($current_page_url . '&orderby=' . $id . '&order=' . ($opts['order'] == $this->order_list[0] ? $this->order_list[1] : $this->order_list[0]));
+                $_field_name = '<a href="' . $_field_order . '">' . $_field_content . '</a>';
+            }
+            echo '<th>' . $_field_name . '</th>';
         }
         echo '</tr>';
         echo '</thead>';
+        unset($tax_details['fields']['post_title']);
 
         /* Results */
         echo '<tbody>';
@@ -222,6 +253,10 @@ class WPUTermsToPosts {
     private function get_filtered_results($term = false, $opts = array()) {
         global $wpdb;
 
+        if (!is_array($opts)) {
+            $opts = array();
+        }
+
         /* Get details for this taxonomy */
         if (!$term || !array_key_exists($term->taxonomy, $this->taxonomies)) {
             return array();
@@ -234,11 +269,15 @@ class WPUTermsToPosts {
             }
         }
 
+        /* Chosen fields */
         $fields = 'p.ID, p.post_title, ' . $custom_fields . ' t.term_taxonomy_id';
-
-        if (is_array($opts) && isset($opts['only_ids'])) {
+        if (isset($opts['only_ids'])) {
             $fields = 'p.ID, t.term_taxonomy_id';
         }
+
+        /* Order */
+        $orderby = isset($opts['orderby']) && in_array($opts['orderby'], $this->orderby_list) ? $opts['orderby'] : $this->orderby_list[0];
+        $order = isset($opts['order']) && in_array($opts['order'], $this->order_list) ? $opts['order'] : $this->order_list[0];
 
         /* Get results */
         $query = "SELECT {$fields}
@@ -248,7 +287,7 @@ class WPUTermsToPosts {
         WHERE 1=1
         AND p.post_status NOT in('inherit','auto-draft')";
         $query .= " AND post_type IN('" . implode("','", $tax_details['post_types']) . "')";
-        $query .= " ORDER BY p.post_title ASC";
+        $query .= " ORDER BY p." . $orderby . " " . $order;
 
         $results = $wpdb->get_results($query, ARRAY_A);
 
