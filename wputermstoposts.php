@@ -3,7 +3,7 @@
 /*
 Plugin Name: WPU Terms to Posts
 Description: Link terms to posts from the term edit page.
-Version: 0.4.0
+Version: 0.4.1
 Author: Darklg
 Author URI: http://darklg.me/
 License: MIT License
@@ -13,7 +13,7 @@ License URI: http://opensource.org/licenses/MIT
 class WPUTermsToPosts {
     private $query;
     private $taxonomies;
-    private $version = '0.4.0';
+    private $version = '0.4.1';
     private $order_list = array('DESC', 'ASC');
     private $orderby_list = array('post_date', 'post_title', 'post_status', 'ID');
 
@@ -202,7 +202,7 @@ class WPUTermsToPosts {
                 $_field_order = admin_url($current_page_url . '&orderby=' . $id . '&order=' . ($opts['order'] == $this->order_list[0] ? $this->order_list[1] : $this->order_list[0]));
                 $_field_name = '<a href="' . $_field_order . '">' . $_field_content . '</a>';
             }
-            echo '<th>' . $_field_name . '</th>';
+            echo '<th ' . ($id == 'post_title' ? 'class="column-primary"' : '') . '>' . $_field_name . '</th>';
         }
         echo '</tr>';
         echo '</thead>';
@@ -212,13 +212,14 @@ class WPUTermsToPosts {
         echo '<tbody>';
         foreach ($filtered_results as $result) {
             echo '<tr data-line="' . esc_attr(strtolower($result['post_title'])) . '">';
-            echo '<td>';
+            echo '<th class="check-column">';
             echo '<input type="hidden" name="wputtp_values[' . $result['ID'] . ']"  value="' . ($result['term_taxonomy_id'] == $term->term_id ? '1' : '0') . '" />';
             echo '<input type="checkbox" name="wputtp_results[' . $result['ID'] . ']" id="wputtp_result_' . $result['ID'] . '" ' . checked($result['term_taxonomy_id'], $term->term_id, false) . ' value="" />';
-            echo '</td>';
-            echo '<td><label for="wputtp_result_' . $result['ID'] . '">' . $result['post_title'] . '</label></td>';
+            echo '</th>';
+            echo '<td class="column-primary"><label for="wputtp_result_' . $result['ID'] . '">' . $result['post_title'] . '</label></td>';
             foreach ($tax_details['fields'] as $id => $field) {
-                echo '<td>' . (isset($result[$id]) ? $result[$id] : '-') . '</td>';
+                $field_result = apply_filters('wputtp_display_field', (isset($result[$id]) ? $result[$id] : '-'), $id, $field);
+                echo '<td>' . $field_result . '</td>';
             }
             echo '</tr>';
         }

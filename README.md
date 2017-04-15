@@ -21,8 +21,8 @@ function set_wputtp_taxonomies($taxonomies) {
 Roadmap :
 ---
 
+- [x] Add search.
 - [ ] AJAX Loading.
-- [ ] Add search.
 - [ ] Pagination.
 - [ ] Check if columns are in the authorized columns.
 - [ ] Add special columns not present in the database (thumbnails, post metas, formatted date).
