@@ -11,6 +11,16 @@
     display: none;
 }
 
+/* Images
+-------------------------- */
+
+#wputermstoposts_table img {
+    display: inline-block;
+    max-height: 30px;
+    max-width: 30px;
+    vertical-align: middle;
+}
+
 /* Overflow
 -------------------------- */
 

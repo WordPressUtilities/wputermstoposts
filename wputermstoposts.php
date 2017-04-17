@@ -3,7 +3,7 @@
 /*
 Plugin Name: WPU Terms to Posts
 Description: Link terms to posts from the term edit page.
-Version: 0.4.1
+Version: 0.5.0
 Author: Darklg
 Author URI: http://darklg.me/
 License: MIT License
@@ -13,7 +13,7 @@ License URI: http://opensource.org/licenses/MIT
 class WPUTermsToPosts {
     private $query;
     private $taxonomies;
-    private $version = '0.4.1';
+    private $version = '0.5.0';
     private $order_list = array('DESC', 'ASC');
     private $orderby_list = array('post_date', 'post_title', 'post_status', 'ID');
 
@@ -61,6 +61,10 @@ class WPUTermsToPosts {
                         'name' => __('Date', 'wputermstoposts')
                     )
                 );
+            }
+
+            if (!isset($taxonomy['extra_fields']) || !is_array($taxonomy['extra_fields'])) {
+                $taxonomy['extra_fields'] = array();
             }
 
             /* Insert before form */
@@ -181,13 +185,14 @@ class WPUTermsToPosts {
         }
 
         echo '<form action="' . admin_url('admin-post.php') . '" method="post">';
+
         echo '<div class="wputermstoposts_table_wrap">';
         echo '<table id="wputermstoposts_table" class="wp-list-table widefat striped">';
 
-        /* Heading */
-        echo '<thead>';
-        echo '<tr><th></th>';
+        $tax_details['extra_fields']['tax'] = 1;
 
+        /* Heading */
+        $_heading = '<tr><th></th>';
         $tax_details['fields'] = array_merge($field_title, $tax_details['fields']);
         foreach ($tax_details['fields'] as $id => $field) {
             if (!isset($field['name'])) {
@@ -202,11 +207,16 @@ class WPUTermsToPosts {
                 $_field_order = admin_url($current_page_url . '&orderby=' . $id . '&order=' . ($opts['order'] == $this->order_list[0] ? $this->order_list[1] : $this->order_list[0]));
                 $_field_name = '<a href="' . $_field_order . '">' . $_field_content . '</a>';
             }
-            echo '<th ' . ($id == 'post_title' ? 'class="column-primary"' : '') . '>' . $_field_name . '</th>';
+            $_heading .= '<th ' . ($id == 'post_title' ? 'class="column-primary"' : '') . '>' . $_field_name . '</th>';
         }
-        echo '</tr>';
-        echo '</thead>';
+        foreach ($tax_details['extra_fields'] as $id => $extra) {
+            $_heading .= '<th>' . (isset($extra['name']) ? esc_html($extra['name']) : $id) . '</th>';
+        }
+        $_heading .= '</tr>';
         unset($tax_details['fields']['post_title']);
+
+        echo '<thead>' . $_heading . '</thead>';
+        echo '<tfoot>' . $_heading . '</tfoot>';
 
         /* Results */
         echo '<tbody>';
@@ -220,6 +230,27 @@ class WPUTermsToPosts {
             foreach ($tax_details['fields'] as $id => $field) {
                 $field_result = apply_filters('wputtp_display_field', (isset($result[$id]) ? $result[$id] : '-'), $id, $field);
                 echo '<td>' . $field_result . '</td>';
+            }
+            foreach ($tax_details['extra_fields'] as $id => $extra) {
+
+                switch ($id) {
+                case 'thumbnail':
+                    $extra_value = get_the_post_thumbnail($result['ID'], 'thumbnail');
+                    break;
+                case 'tax':
+                case 'taxonomy':
+                    $_terms = wp_get_post_terms($result['ID'], $term->taxonomy);
+                    $_terms_names = array();
+                    foreach ($_terms as $_term) {
+                        $_terms_names[] = $_term->name;
+                    }
+                    $extra_value = implode(', ', $_terms_names);
+                    break;
+                default:
+                    $extra_value = $id;
+                }
+
+                echo '<td>' . $extra_value . '</td>';
             }
             echo '</tr>';
         }
