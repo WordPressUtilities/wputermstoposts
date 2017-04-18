@@ -3,7 +3,7 @@
 /*
 Plugin Name: WPU Terms to Posts
 Description: Link terms to posts from the term edit page.
-Version: 0.5.1
+Version: 0.5.2
 Author: Darklg
 Author URI: http://darklg.me/
 License: MIT License
@@ -13,7 +13,7 @@ License URI: http://opensource.org/licenses/MIT
 class WPUTermsToPosts {
     private $query;
     private $taxonomies;
-    private $version = '0.5.1';
+    private $version = '0.5.2';
     private $order_list = array('DESC', 'ASC');
     private $orderby_list = array('post_date', 'post_title', 'post_status', 'ID');
 
@@ -34,11 +34,7 @@ class WPUTermsToPosts {
     }
 
     public function init() {
-        $this->taxonomies = apply_filters('wputtp_taxonomies', array(
-            'category' => array(
-                'post_types' => array('post')
-            )
-        ));
+        $this->taxonomies = apply_filters('wputtp_taxonomies', array());
 
         add_action('admin_enqueue_scripts', array(&$this, 'load_assets'));
 
@@ -64,7 +60,7 @@ class WPUTermsToPosts {
             }
 
             if (!isset($taxonomy['extra_fields']) || !is_array($taxonomy['extra_fields'])) {
-                $taxonomy['extra_fields'] = array();
+                $this->taxonomies[$id]['extra_fields'] = array();
             }
 
             /* Insert before form */
