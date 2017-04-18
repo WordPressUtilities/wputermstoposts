@@ -1,7 +1,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: \n"
-"POT-Creation-Date: 2017-04-17 23:48+0200\n"
+"POT-Creation-Date: 2017-04-18 15:22+0200\n"
 "PO-Revision-Date: \n"
 "Last-Translator: Darklg <darklg.blog@gmail.com>\n"
 "Language-Team: \n"
@@ -39,11 +39,11 @@ msgstr "Articles liés"
 msgid "Linked posts were successfully updated"
 msgstr "Les articles liés ont été mis à jour avec succès"
 
-#: .././wputermstoposts.php:262
+#: .././wputermstoposts.php:260
 msgid "Filter:"
 msgstr "Filtrer :"
 
-#: .././wputermstoposts.php:267
+#: .././wputermstoposts.php:265
 msgid "Save"
 msgstr "Enregistrer"
 

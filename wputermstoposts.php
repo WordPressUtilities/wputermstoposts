@@ -3,7 +3,7 @@
 /*
 Plugin Name: WPU Terms to Posts
 Description: Link terms to posts from the term edit page.
-Version: 0.5.0
+Version: 0.5.1
 Author: Darklg
 Author URI: http://darklg.me/
 License: MIT License
@@ -13,7 +13,7 @@ License URI: http://opensource.org/licenses/MIT
 class WPUTermsToPosts {
     private $query;
     private $taxonomies;
-    private $version = '0.5.0';
+    private $version = '0.5.1';
     private $order_list = array('DESC', 'ASC');
     private $orderby_list = array('post_date', 'post_title', 'post_status', 'ID');
 
@@ -188,8 +188,6 @@ class WPUTermsToPosts {
 
         echo '<div class="wputermstoposts_table_wrap">';
         echo '<table id="wputermstoposts_table" class="wp-list-table widefat striped">';
-
-        $tax_details['extra_fields']['tax'] = 1;
 
         /* Heading */
         $_heading = '<tr><th></th>';
