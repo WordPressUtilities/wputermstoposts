@@ -3,7 +3,7 @@
 /*
 Plugin Name: WPU Terms to Posts
 Description: Link terms to posts from the term edit page.
-Version: 0.5.2
+Version: 0.5.3
 Author: Darklg
 Author URI: http://darklg.me/
 License: MIT License
@@ -13,7 +13,7 @@ License URI: http://opensource.org/licenses/MIT
 class WPUTermsToPosts {
     private $query;
     private $taxonomies;
-    private $version = '0.5.2';
+    private $version = '0.5.3';
     private $order_list = array('DESC', 'ASC');
     private $orderby_list = array('post_date', 'post_title', 'post_status', 'ID');
 
@@ -43,6 +43,10 @@ class WPUTermsToPosts {
             /* Default post types */
             if (!isset($taxonomy['post_types'])) {
                 $this->taxonomies[$id]['post_types'] = array('post');
+            }
+            /* Default excluded statuses */
+            if (!isset($taxonomy['excluded_post_status'])) {
+                $this->taxonomies[$id]['excluded_post_status'] = array('inherit', 'auto-draft', 'trash');
             }
             /* Default post types */
             if (!isset($taxonomy['fields'])) {
@@ -311,7 +315,7 @@ class WPUTermsToPosts {
         LEFT JOIN wp_term_relationships t
         ON p.ID = t.object_id
         WHERE 1=1
-        AND p.post_status NOT in('inherit','auto-draft')";
+        AND p.post_status NOT IN('" . implode("','", $tax_details['excluded_post_status']) . "')";
         $query .= " AND post_type IN('" . implode("','", $tax_details['post_types']) . "')";
         $query .= " ORDER BY p." . $orderby . " " . $order;
 
