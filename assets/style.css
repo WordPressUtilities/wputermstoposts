@@ -1,40 +1,52 @@
 @charset "UTF-8";
 
 /* ----------------------------------------------------------
-  Table
+  Common
 ---------------------------------------------------------- */
 
-/* Hide lines
--------------------------- */
-
-#wputermstoposts_table tr[data-line][data-hidden="1"] {
-    display: none;
-}
-
-/* Images
--------------------------- */
-
-#wputermstoposts_table img {
-    display: inline-block;
-    max-height: 30px;
-    max-width: 30px;
-    vertical-align: middle;
-}
-
-/* Overflow
--------------------------- */
-
-.wputermstoposts_table_wrap {
-    max-height: 300px;
-    overflow: auto;
+.wputermstoposts-wrapper label {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
 }
 
 /* ----------------------------------------------------------
-  Filter
+  List
 ---------------------------------------------------------- */
 
-.wputermstoposts_filter {
-    margin: 1em 0;
-    text-align: right;
-    line-height: 25px;
+.wputermstoposts_list {
+    margin: 0;
+    padding: 1em;
+    max-height: 200px;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.05);
+    -webkit-overflow-scrolling: touch;
+}
+
+.wputermstoposts_list li[data-hidden="1"] {
+    z-index: 1;
+    position: absolute;
+    top: 0;
+    left: -999px;
+    width: 1px;
+    height: 0;
+    height: 1px;
+    overflow: hidden;
+}
+
+/* ----------------------------------------------------------
+  Filters
+---------------------------------------------------------- */
+
+.wputermstoposts-filters {
+    margin-top: 1em;
+}
+
+.wputermstoposts-filters label {
+    display: inline-block;
+    vertical-align: top;
+}
+
+.wputermstoposts-filters label + label {
+    margin-left: 1em;
 }

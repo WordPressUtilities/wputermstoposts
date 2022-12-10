@@ -3,75 +3,59 @@
 /*
 Plugin Name: WPU Terms to Posts
 Description: Link terms to posts from the term edit page.
-Version: 0.5.3
+Version: 0.6.0
 Author: Darklg
-Author URI: http://darklg.me/
+Author URI: https://darklg.me/
 License: MIT License
-License URI: http://opensource.org/licenses/MIT
+License URI: https://opensource.org/licenses/MIT
 */
 
 class WPUTermsToPosts {
-    private $query;
     private $taxonomies;
-    private $version = '0.5.3';
-    private $order_list = array('DESC', 'ASC');
-    private $orderby_list = array('post_date', 'post_title', 'post_status', 'ID');
+    private $version = '0.6.0';
+    private $order_list = array(
+        'desc' => 'DESC',
+        'asc' => 'ASC'
+    );
 
     public function __construct() {
         add_action('plugins_loaded', array(&$this,
             'plugins_loaded'
-        ));
-        add_action('init', array(&$this,
-            'init'
-        ));
-        add_action('admin_post_change_taxonomy', array(&$this,
-            'change_taxonomy'
-        ));
+        ), 99);
+        add_action('admin_init', array(&$this,
+            'admin_init'
+        ), 99);
     }
 
     public function plugins_loaded() {
-        load_plugin_textdomain('wputermstoposts', false, dirname(plugin_basename(__FILE__)) . '/lang/');
+        if (!is_admin()) {
+            return;
+        }
+
+        if (!load_plugin_textdomain('wputermstoposts', false, dirname(plugin_basename(__FILE__)) . '/lang/')) {
+            load_muplugin_textdomain('wputermstoposts', dirname(plugin_basename(__FILE__)) . '/lang/');
+        }
     }
 
-    public function init() {
+    public function admin_init() {
         $this->taxonomies = apply_filters('wputtp_taxonomies', array());
-
         add_action('admin_enqueue_scripts', array(&$this, 'load_assets'));
 
         foreach ($this->taxonomies as $id => $taxonomy) {
+            $taxonomy_item = get_taxonomy($id);
+            if (!$taxonomy_item) {
+                continue;
+            }
 
             /* Default post types */
             if (!isset($taxonomy['post_types'])) {
-                $this->taxonomies[$id]['post_types'] = array('post');
+                $this->taxonomies[$id]['post_types'] = $taxonomy_item->object_type;
             }
-            /* Default excluded statuses */
-            if (!isset($taxonomy['excluded_post_status'])) {
-                $this->taxonomies[$id]['excluded_post_status'] = array('inherit', 'auto-draft', 'trash');
-            }
-            /* Default post types */
-            if (!isset($taxonomy['fields'])) {
-                $this->taxonomies[$id]['fields'] = array(
-                    'post_status' => array(
-                        'name' => __('Status', 'wputermstoposts')
-                    ),
-                    'post_type' => array(
-                        'name' => __('Post type', 'wputermstoposts')
-                    ),
-                    'post_date' => array(
-                        'name' => __('Date', 'wputermstoposts')
-                    )
-                );
-            }
-
-            if (!isset($taxonomy['extra_fields']) || !is_array($taxonomy['extra_fields'])) {
-                $this->taxonomies[$id]['extra_fields'] = array();
-            }
-
-            /* Insert before form */
-            add_action($id . '_pre_edit_form', array(&$this,
-                'linked_posts_before_form'
-            ));
+            /* Add actions */
+            add_action($id . '_edit_form_fields', array(&$this, 'add_fields'), 10);
+            add_action('edited_' . $id, array(&$this, 'save_term_posts'));
         }
+
     }
 
     /* ----------------------------------------------------------
@@ -88,253 +72,127 @@ class WPUTermsToPosts {
     }
 
     /* ----------------------------------------------------------
-      Save changes
+      Edit form
     ---------------------------------------------------------- */
 
-    /**
-     * For each post, add or remove the given term
-     */
-    public function change_taxonomy() {
+    public function add_fields() {
 
-        /* Check nonce */
-        if (!isset($_POST['wputtp_noncename']) || !wp_verify_nonce($_POST['wputtp_noncename'], plugin_basename(__FILE__))) {
-            wp_safe_redirect(wp_get_referer());
-            die;
-        }
-
-        /* Check term & taxonomy */
-        if (!isset($_REQUEST['term'], $_REQUEST['taxonomy']) || !is_numeric($_REQUEST['term'])) {
-            wp_safe_redirect(wp_get_referer());
-            die;
-        }
-
-        $term = get_term_by('id', $_REQUEST['term'], $_REQUEST['taxonomy']);
-        $taxonomy = get_taxonomy($term->taxonomy);
-
-        if (!is_object($term) || !is_object($taxonomy) || !current_user_can($taxonomy->cap->manage_terms)) {
-            wp_safe_redirect(wp_get_referer());
-            die;
-        }
-
-        /* Get results */
-
-        $ids_ok = $_REQUEST['wputtp_results'];
-        $initial_ids = $_REQUEST['wputtp_values'];
-
-        foreach ($initial_ids as $post_id => $item_in_category) {
-
-            /* The post was checked but didn't have this term */
-            if (array_key_exists($post_id, $ids_ok) && !$item_in_category) {
-                /* Append term */
-                wp_set_object_terms($post_id, $term->term_id, $term->taxonomy, true);
-            }
-
-            /* The post was not checked but had this term */
-            if (!array_key_exists($post_id, $ids_ok) && $item_in_category) {
-                $terms = wp_get_post_terms($post_id, $term->taxonomy);
-                $terms_ids = array();
-                /* Keep all terms but the current one */
-                foreach ($terms as $tmp_term) {
-                    if ($term->term_id != $tmp_term->term_id) {
-                        $terms_ids[] = $tmp_term->term_id;
-                    }
-                }
-                wp_set_object_terms($post_id, $terms_ids, $term->taxonomy, false);
-            }
-        }
-
-        wp_safe_redirect(wp_get_referer() . '&wputermstoposts_success=1');
-        die;
-    }
-
-    /* ----------------------------------------------------------
-      Display form
-    ---------------------------------------------------------- */
-
-    /**
-     * Display a list of posts before the edit term form
-     * @param  object $term  WordPress Term Object
-     */
-    public function linked_posts_before_form($term) {
-
-        if (!array_key_exists($term->taxonomy, $this->taxonomies)) {
-            return;
-        }
-        $tax_details = $this->taxonomies[$term->taxonomy];
-
-        $opts = array(
-            'orderby' => isset($_GET['orderby']) && in_array($_GET['orderby'], $this->orderby_list) ? $_GET['orderby'] : $this->orderby_list[0],
-            'order' => isset($_GET['order']) && in_array($_GET['order'], $this->order_list) ? $_GET['order'] : $this->order_list[0]
+        $sort_attributes = array(
+            'data-post-date' => 'Post Date',
+            'data-post-title' => 'Post Title',
+            'data-post-id' => 'Post ID'
         );
+        global $tag;
 
-        $field_title = array(
-            'post_title' => array('name' => __('Post title', 'wputermstoposts'))
-        );
+        $current_tax = $this->taxonomies[$tag->taxonomy];
+        foreach ($current_tax['post_types'] as $post_type) {
+            $post_type_info = get_post_type_object($post_type);
 
-        $current_page_url = 'term.php?tag_ID=' . esc_html($_GET['tag_ID']);
-        $current_page_url .= '&taxonomy=' . esc_html($_GET['taxonomy']);
+            /* Currently selected posts */
+            $selected_posts = $this->get_posts_for_term($post_type, $tag);
 
-        $filtered_results = $this->get_filtered_results($term, $opts);
+            /* All posts */
+            $posts = get_posts(array(
+                'post_type' => $post_type,
+                'posts_per_page' => -1,
+                'post_status' => 'any'
+            ));
 
-        /* Open wrap */
-        echo '<div class="wrap">';
-        echo '<h1>' . __('Linked posts', 'wputermstoposts') . '</h1>';
-
-        if (isset($_GET['wputermstoposts_success']) && $_GET['wputermstoposts_success'] == '1') {
-            echo '<div id="message" class="updated"><p>' . __('Linked posts were successfully updated', 'wputermstoposts') . '</p></div>';
-        }
-
-        echo '<form action="' . admin_url('admin-post.php') . '" method="post">';
-
-        echo '<div class="wputermstoposts_table_wrap">';
-        echo '<table id="wputermstoposts_table" class="wp-list-table widefat striped">';
-
-        /* Heading */
-        $_heading = '<tr><th></th>';
-        $tax_details['fields'] = array_merge($field_title, $tax_details['fields']);
-        foreach ($tax_details['fields'] as $id => $field) {
-            if (!isset($field['name'])) {
-                $field['name'] = $id;
-            }
-            $_field_name = $field['name'];
-            if (in_array($id, $this->orderby_list)) {
-                $_field_content = $_field_name;
-                if ($opts['orderby'] == $id) {
-                    $_field_content .= ' ' . ($opts['order'] == 'ASC' ? '▴' : '▾');
+            echo '<tr>';
+            echo '<th><label>' . $post_type_info->label . '</label></th>';
+            echo '<td class="wputermstoposts-wrapper"><ul class="wputermstoposts_list">';
+            $field_base_id = 'wputermstoposts_' . $post_type;
+            foreach ($posts as $post) {
+                $checked = in_array($post->ID, $selected_posts) ? ' checked' : '';
+                $field_id = $field_base_id . '_' . $post->ID;
+                $attributes = array(
+                    'data-post-date' => get_the_time('U', $post),
+                    'data-post-title' => strtolower($post->post_title),
+                    'data-post-id' => $post->ID
+                );
+                $attributes_html = '';
+                foreach ($attributes as $attr_key => $attr_val) {
+                    $attributes_html .= ' ' . $attr_key . '="' . esc_attr($attr_val) . '"';
                 }
-                $_field_order = admin_url($current_page_url . '&orderby=' . $id . '&order=' . ($opts['order'] == $this->order_list[0] ? $this->order_list[1] : $this->order_list[0]));
-                $_field_name = '<a href="' . $_field_order . '">' . $_field_content . '</a>';
-            }
-            $_heading .= '<th ' . ($id == 'post_title' ? 'class="column-primary"' : '') . '>' . $_field_name . '</th>';
-        }
-        foreach ($tax_details['extra_fields'] as $id => $extra) {
-            $_heading .= '<th>' . (isset($extra['name']) ? esc_html($extra['name']) : $id) . '</th>';
-        }
-        $_heading .= '</tr>';
-        unset($tax_details['fields']['post_title']);
-
-        echo '<thead>' . $_heading . '</thead>';
-        echo '<tfoot>' . $_heading . '</tfoot>';
-
-        /* Results */
-        echo '<tbody>';
-        foreach ($filtered_results as $result) {
-            echo '<tr data-line="' . esc_attr(strtolower($result['post_title'])) . '">';
-            echo '<th class="check-column">';
-            echo '<input type="hidden" name="wputtp_values[' . $result['ID'] . ']"  value="' . ($result['term_taxonomy_id'] == $term->term_id ? '1' : '0') . '" />';
-            echo '<input type="checkbox" name="wputtp_results[' . $result['ID'] . ']" id="wputtp_result_' . $result['ID'] . '" ' . checked($result['term_taxonomy_id'], $term->term_id, false) . ' value="" />';
-            echo '</th>';
-            echo '<td class="column-primary"><label for="wputtp_result_' . $result['ID'] . '">' . $result['post_title'] . '</label></td>';
-            foreach ($tax_details['fields'] as $id => $field) {
-                $field_result = apply_filters('wputtp_display_field', (isset($result[$id]) ? $result[$id] : '-'), $id, $field);
-                echo '<td>' . $field_result . '</td>';
-            }
-            foreach ($tax_details['extra_fields'] as $id => $extra) {
-
-                switch ($id) {
-                case 'thumbnail':
-                    $extra_value = get_the_post_thumbnail($result['ID'], 'thumbnail');
-                    break;
-                case 'tax':
-                case 'taxonomy':
-                    $_terms = wp_get_post_terms($result['ID'], $term->taxonomy);
-                    $_terms_names = array();
-                    foreach ($_terms as $_term) {
-                        $_terms_names[] = $_term->name;
-                    }
-                    $extra_value = implode(', ', $_terms_names);
-                    break;
-                default:
-                    $extra_value = $id;
+                $status = get_post_status_object($post->post_status);
+                echo '<li ' . $attributes_html . '>';
+                echo '<label title="' . esc_attr(sprintf('ID #%s - %s', $post->ID, $post->post_date)) . '">';
+                echo '<input id="' . $field_id . '" type="checkbox" name="' . $field_base_id . '[]" value="' . $post->ID . '"' . $checked . ' />';
+                echo ' ' . esc_html($post->post_title);
+                if ($status) {
+                    echo ' <small>(' . $status->label . ')</small>';
                 }
-
-                echo '<td>' . $extra_value . '</td>';
+                echo '</label>';
+                echo '</li>';
             }
+            echo '</ul>';
+            echo '<div class="wputermstoposts-filters">';
+            echo '<label>' . __('Filter:', 'wputermstoposts') . ' <input type="text" class="wputermstoposts_filter" id="' . $field_base_id . '_filter"/></label>';
+            echo '<label>' . __('Order:', 'wputermstoposts') . ' ';
+            echo '<select class="wputermstoposts_order" id="' . $field_base_id . '_order">';
+            foreach ($sort_attributes as $attr_id => $attr_name) {
+                foreach ($this->order_list as $order_id => $order_name) {
+                    echo '<option data-order="' . $order_id . '" name="' . $attr_id . '">' . $attr_name . ' - ' . $order_name . '</option>';
+                }
+            }
+            echo '</select>';
+            echo '</label>';
+            echo '</div>';
+            echo '</td>';
             echo '</tr>';
         }
-        echo '</tbody>';
-
-        /* Close wrap */
-        echo '</table>';
-        echo '</div>';
-        echo '<div class="wputermstoposts_filter"><label for="wputermstoposts_s">' . __('Filter:', 'wputermstoposts') . '</label> <input id="wputermstoposts_s" type="text" value="" /></div>';
-        wp_nonce_field(plugin_basename(__FILE__), 'wputtp_noncename');
-        echo '<input type="hidden" name="action" value="change_taxonomy" />';
-        echo '<input type="hidden" name="term" value="' . $term->term_id . '">';
-        echo '<input type="hidden" name="taxonomy" value="' . $term->taxonomy . '">';
-        submit_button(__('Save', 'wputermstoposts'));
-        echo '</form>';
-        echo '</div>';
-
-        /* Garbage collect */
-        unset($filtered_results);
     }
 
     /* ----------------------------------------------------------
-      Internal API
+      Save posts
     ---------------------------------------------------------- */
 
-    /**
-     * Get a list of posts
-     * @param  object  $term WordPress term object
-     * @param  array   $opts  array of options
-     * @return array          list of posts
-     */
-    private function get_filtered_results($term = false, $opts = array()) {
-        global $wpdb;
+    public function save_term_posts($term_id) {
+        $term = get_term_by('term_taxonomy_id', $term_id);
+        $current_tax = $this->taxonomies[$term->taxonomy];
+        foreach ($current_tax['post_types'] as $post_type) {
+            $selected_posts = $_POST['wputermstoposts_' . $post_type];
+            if (!is_array($selected_posts)) {
+                return;
+            }
 
-        if (!is_array($opts)) {
-            $opts = array();
-        }
+            /* Remove selected posts which are not checked */
+            $currently_selected_posts = $this->get_posts_for_term($post_type, $term);
+            foreach ($currently_selected_posts as $post_id) {
+                if (!in_array($post_id, $selected_posts)) {
+                    wp_remove_object_terms($post_id, $term->term_id, $term->taxonomy);
+                }
+            }
 
-        /* Get details for this taxonomy */
-        if (!$term || !array_key_exists($term->taxonomy, $this->taxonomies)) {
-            return array();
-        }
-        $tax_details = $this->taxonomies[$term->taxonomy];
-        $custom_fields = '';
-        if (isset($tax_details['fields'])) {
-            foreach ($tax_details['fields'] as $field_id => $field) {
-                $custom_fields .= 'p.' . $field_id . ',';
+            /* Add posts which are checked */
+            foreach ($selected_posts as $post_id) {
+                if (!in_array($post_id, $currently_selected_posts) && get_post_type($post_id) == $post_type) {
+                    wp_add_object_terms(intval($post_id, 10), $term->term_id, $term->taxonomy);
+                }
             }
         }
-
-        /* Chosen fields */
-        $fields = 'p.ID, p.post_title, ' . $custom_fields . ' t.term_taxonomy_id';
-        if (isset($opts['only_ids'])) {
-            $fields = 'p.ID, t.term_taxonomy_id';
-        }
-
-        /* Order */
-        $orderby = isset($opts['orderby']) && in_array($opts['orderby'], $this->orderby_list) ? $opts['orderby'] : $this->orderby_list[0];
-        $order = isset($opts['order']) && in_array($opts['order'], $this->order_list) ? $opts['order'] : $this->order_list[0];
-
-        /* Get results */
-        $query = "SELECT {$fields}
-        FROM wp_posts p
-        LEFT JOIN wp_term_relationships t
-        ON p.ID = t.object_id
-        WHERE 1=1
-        AND p.post_status NOT IN('" . implode("','", $tax_details['excluded_post_status']) . "')";
-        $query .= " AND post_type IN('" . implode("','", $tax_details['post_types']) . "')";
-        $query .= " ORDER BY p." . $orderby . " " . $order;
-
-        $results = $wpdb->get_results($query, ARRAY_A);
-
-        /* De-duplicate listing and keep only infos about current categories if duplicate */
-        $filtered_results = array();
-        foreach ($results as $id => $result) {
-            if (isset($filtered_results[$result['ID']]) && $filtered_results[$result['ID']]['term_taxonomy_id'] == $term->term_id) {
-                $result['term_taxonomy_id'] = $term->term_id;
-            }
-            $filtered_results[$result['ID']] = $result;
-        }
-
-        /* Garbage collect */
-        unset($results);
-
-        return $filtered_results;
     }
+
+    /* ----------------------------------------------------------
+      Helper
+    ---------------------------------------------------------- */
+
+    public function get_posts_for_term($post_type, $term) {
+        return get_posts(array(
+            'fields' => 'ids',
+            'post_type' => $post_type,
+            'posts_per_page' => -1,
+            'post_status' => 'any',
+            'tax_query' => array(
+                array(
+                    'taxonomy' => $term->taxonomy,
+                    'field' => 'term_id',
+                    'terms' => $term->term_id
+                )
+            )
+        ));
+    }
+
 }
 
 $WPUTermsToPosts = new WPUTermsToPosts();
