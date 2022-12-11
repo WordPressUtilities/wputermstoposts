@@ -9,17 +9,27 @@ jQuery(document).ready(function() {
 
 function wputermstoposts_set_filter() {
     jQuery('.wputermstoposts_filter').each(function() {
+        var $el = jQuery(this),
+            $wrapper = $el.closest('td'),
+            $count = $wrapper.find('.wputermstoposts-filters__count .count'),
+            $list = $wrapper.find('.wputermstoposts_list').children();
         jQuery(this).on('input', function() {
-            var $el = jQuery(this),
-                $list = $el.closest('td').find('.wputermstoposts_list').children();
-            var _search = $el.val().toLowerCase();
+            var _total = 0,
+                _search = $el.val().toLowerCase();
             if (!_search) {
+                $count.text($count.attr('data-total'));
                 $list.attr('data-hidden', '0');
                 return;
             }
+
             $list.each(function(i, el) {
-                el.setAttribute('data-hidden', (el.innerText.toLowerCase().indexOf(_search) !== -1) ? '0' : '1');
+                var _isVisible = (el.innerText.toLowerCase().indexOf(_search) !== -1);
+                if (_isVisible) {
+                    _total++;
+                }
+                el.setAttribute('data-hidden', _isVisible ? '0' : '1');
             });
+            $count.text(_total);
         });
     });
 }
@@ -53,7 +63,7 @@ function wputermstoposts_reorderList(list, attrName, attrOrder) {
         }
         var valA = a.getAttribute(attrName);
         var valB = b.getAttribute(attrName);
-        if(attrName == 'data-post-title'){
+        if (attrName == 'data-post-title') {
             return valA < valB ? -1 : 1;
         }
         else {

@@ -3,7 +3,7 @@
 /*
 Plugin Name: WPU Terms to Posts
 Description: Link terms to posts from the term edit page.
-Version: 0.6.0
+Version: 0.7.0
 Author: Darklg
 Author URI: https://darklg.me/
 License: MIT License
@@ -12,7 +12,7 @@ License URI: https://opensource.org/licenses/MIT
 
 class WPUTermsToPosts {
     private $taxonomies;
-    private $version = '0.6.0';
+    private $version = '0.7.0';
     private $order_list = array(
         'desc' => 'DESC',
         'asc' => 'ASC'
@@ -119,6 +119,9 @@ class WPUTermsToPosts {
                 echo '<label title="' . esc_attr(sprintf('ID #%s - %s', $post->ID, $post->post_date)) . '">';
                 echo '<input id="' . $field_id . '" type="checkbox" name="' . $field_base_id . '[]" value="' . $post->ID . '"' . $checked . ' />';
                 echo ' ' . esc_html($post->post_title);
+                if(function_exists('pll_get_post_language')){
+                    echo ' [' . pll_get_post_language($post->ID) . ']';
+                }
                 if ($status) {
                     echo ' <small>(' . $status->label . ')</small>';
                 }
@@ -127,7 +130,8 @@ class WPUTermsToPosts {
             }
             echo '</ul>';
             echo '<div class="wputermstoposts-filters">';
-            echo '<label>' . __('Filter:', 'wputermstoposts') . ' <input type="text" class="wputermstoposts_filter" id="' . $field_base_id . '_filter"/></label>';
+            echo '<label>' . __('Filter:', 'wputermstoposts') . ' ';
+            echo '<input type="text" class="wputermstoposts_filter" id="' . $field_base_id . '_filter"/></label>';
             echo '<label>' . __('Order:', 'wputermstoposts') . ' ';
             echo '<select class="wputermstoposts_order" id="' . $field_base_id . '_order">';
             foreach ($sort_attributes as $attr_id => $attr_name) {
@@ -137,6 +141,8 @@ class WPUTermsToPosts {
             }
             echo '</select>';
             echo '</label>';
+            $total = count($posts);
+            echo ' <span class="wputermstoposts-filters__count"><span class="count" data-total="'.$total.'">' . $total . '</span>/' . $total . '</span>';
             echo '</div>';
             echo '</td>';
             echo '</tr>';
