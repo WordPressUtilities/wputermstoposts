@@ -3,7 +3,7 @@
 /*
 Plugin Name: WPU Terms to Posts
 Description: Link terms to posts from the term edit page.
-Version: 0.7.0
+Version: 0.8.0
 Author: Darklg
 Author URI: https://darklg.me/
 License: MIT License
@@ -12,7 +12,7 @@ License URI: https://opensource.org/licenses/MIT
 
 class WPUTermsToPosts {
     private $taxonomies;
-    private $version = '0.7.0';
+    private $version = '0.8.0';
     private $order_list = array(
         'desc' => 'DESC',
         'asc' => 'ASC'
@@ -52,7 +52,9 @@ class WPUTermsToPosts {
                 $this->taxonomies[$id]['post_types'] = $taxonomy_item->object_type;
             }
             /* Add actions */
+            add_action($id . '_add_form_fields', array(&$this, 'add_fields'), 10);
             add_action($id . '_edit_form_fields', array(&$this, 'add_fields'), 10);
+            add_action('create_' . $id, array(&$this, 'save_term_posts'));
             add_action('edited_' . $id, array(&$this, 'save_term_posts'));
         }
 
@@ -63,7 +65,7 @@ class WPUTermsToPosts {
     ---------------------------------------------------------- */
 
     public function load_assets($hook) {
-        if ('term.php' != $hook) {
+        if (!in_array($hook, array('term.php', 'edit-tags.php'))) {
             return;
         }
 
@@ -76,6 +78,7 @@ class WPUTermsToPosts {
     ---------------------------------------------------------- */
 
     public function add_fields() {
+        $screen = get_current_screen();
 
         $sort_attributes = array(
             'data-post-date' => 'Post Date',
@@ -83,13 +86,24 @@ class WPUTermsToPosts {
             'data-post-id' => 'Post ID'
         );
         global $tag;
-
-        $current_tax = $this->taxonomies[$tag->taxonomy];
+        $current_tag = false;
+        if ($screen->base == 'edit-tags' && isset($_GET['taxonomy'])) {
+            $current_tag = $_GET['taxonomy'];
+        }
+        if (is_object($tag)) {
+            $current_tag = $tag->taxonomy;
+        } else {
+            $tag = false;
+        }
+        if (!$current_tag || !isset($this->taxonomies[$current_tag])) {
+            return;
+        }
+        $current_tax = $this->taxonomies[$current_tag];
         foreach ($current_tax['post_types'] as $post_type) {
             $post_type_info = get_post_type_object($post_type);
 
             /* Currently selected posts */
-            $selected_posts = $this->get_posts_for_term($post_type, $tag);
+            $selected_posts = $tag ? $this->get_posts_for_term($post_type, $tag) : array();
 
             /* All posts */
             $posts = get_posts(array(
@@ -98,9 +112,13 @@ class WPUTermsToPosts {
                 'post_status' => 'any'
             ));
 
-            echo '<tr>';
-            echo '<th><label>' . $post_type_info->label . '</label></th>';
-            echo '<td class="wputermstoposts-wrapper"><ul class="wputermstoposts_list">';
+            $label = '<label>' . $post_type_info->label . '</label>';
+            if ($screen->base == 'term') {
+                echo '<tr><th>' . $label . '</th><td>';
+            } else {
+                echo '<div class="form-field">' . $label;
+            }
+            echo '<div class="wputermstoposts-wrapper"><ul class="wputermstoposts_list">';
             $field_base_id = 'wputermstoposts_' . $post_type;
             foreach ($posts as $post) {
                 $checked = in_array($post->ID, $selected_posts) ? ' checked' : '';
@@ -119,7 +137,7 @@ class WPUTermsToPosts {
                 echo '<label title="' . esc_attr(sprintf('ID #%s - %s', $post->ID, $post->post_date)) . '">';
                 echo '<input id="' . $field_id . '" type="checkbox" name="' . $field_base_id . '[]" value="' . $post->ID . '"' . $checked . ' />';
                 echo ' ' . esc_html($post->post_title);
-                if(function_exists('pll_get_post_language')){
+                if (function_exists('pll_get_post_language')) {
                     echo ' [' . pll_get_post_language($post->ID) . ']';
                 }
                 if ($status) {
@@ -142,10 +160,16 @@ class WPUTermsToPosts {
             echo '</select>';
             echo '</label>';
             $total = count($posts);
-            echo ' <span class="wputermstoposts-filters__count"><span class="count" data-total="'.$total.'">' . $total . '</span>/' . $total . '</span>';
+            echo ' <span class="wputermstoposts-filters__count"><span class="count" data-total="' . $total . '">' . $total . '</span>/' . $total . '</span>';
             echo '</div>';
-            echo '</td>';
-            echo '</tr>';
+            echo '</div>';
+
+            if ($screen->base == 'term') {
+                echo '</td></tr>';
+            } else {
+                echo '</div>';
+            }
+
         }
     }
 
@@ -157,6 +181,9 @@ class WPUTermsToPosts {
         $term = get_term_by('term_taxonomy_id', $term_id);
         $current_tax = $this->taxonomies[$term->taxonomy];
         foreach ($current_tax['post_types'] as $post_type) {
+            if (!isset($_POST['wputermstoposts_' . $post_type])) {
+                return;
+            }
             $selected_posts = $_POST['wputermstoposts_' . $post_type];
             if (!is_array($selected_posts)) {
                 return;

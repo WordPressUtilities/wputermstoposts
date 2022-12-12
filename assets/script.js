@@ -10,7 +10,7 @@ jQuery(document).ready(function() {
 function wputermstoposts_set_filter() {
     jQuery('.wputermstoposts_filter').each(function() {
         var $el = jQuery(this),
-            $wrapper = $el.closest('td'),
+            $wrapper = $el.closest('.wputermstoposts-wrapper'),
             $count = $wrapper.find('.wputermstoposts-filters__count .count'),
             $list = $wrapper.find('.wputermstoposts_list').children();
         jQuery(this).on('input', function() {
@@ -44,7 +44,7 @@ function wputermstoposts_set_reorder() {
             var $el = jQuery(this),
                 attrName = $el.find(":selected").attr('name'),
                 attrOrder = $el.find(":selected").attr('data-order'),
-                $list = $el.closest('td').find('.wputermstoposts_list').get(0);
+                $list = $el.closest('.wputermstoposts-wrapper').find('.wputermstoposts_list').get(0);
             wputermstoposts_reorderList($list, attrName, attrOrder);
         });
     });
