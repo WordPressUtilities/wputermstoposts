@@ -3,7 +3,7 @@
 /*
 Plugin Name: WPU Terms to Posts
 Description: Link terms to posts from the term edit page.
-Version: 0.8.0
+Version: 0.8.1
 Author: Darklg
 Author URI: https://darklg.me/
 License: MIT License
@@ -12,7 +12,7 @@ License URI: https://opensource.org/licenses/MIT
 
 class WPUTermsToPosts {
     private $taxonomies;
-    private $version = '0.8.0';
+    private $version = '0.8.1';
     private $order_list = array(
         'desc' => 'DESC',
         'asc' => 'ASC'

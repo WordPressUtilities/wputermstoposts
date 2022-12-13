@@ -46,5 +46,13 @@
 .wputermstoposts-filters label {
     display: inline-block;
     margin-right: 1em;
-    vertical-align: middle;
+    vertical-align: bottom;
+}
+
+.wputermstoposts-filters__count {
+    line-height: 2;
+}
+
+#addtag .wputermstoposts-filters__count {
+    line-height: 3;
 }
