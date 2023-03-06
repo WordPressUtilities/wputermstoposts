@@ -3,16 +3,20 @@
 /*
 Plugin Name: WPU Terms to Posts
 Description: Link terms to posts from the term edit page.
-Version: 0.8.1
+Version: 0.9.0
 Author: Darklg
 Author URI: https://darklg.me/
+Text Domain: wputermstoposts
+Domain Path: /lang
+Requires at least: 6.0
+Requires PHP: 8.0
 License: MIT License
 License URI: https://opensource.org/licenses/MIT
 */
 
 class WPUTermsToPosts {
     private $taxonomies;
-    private $version = '0.8.1';
+    private $version = '0.9.0';
     private $order_list = array(
         'desc' => 'DESC',
         'asc' => 'ASC'
@@ -32,9 +36,11 @@ class WPUTermsToPosts {
             return;
         }
 
-        if (!load_plugin_textdomain('wputermstoposts', false, dirname(plugin_basename(__FILE__)) . '/lang/')) {
-            load_muplugin_textdomain('wputermstoposts', dirname(plugin_basename(__FILE__)) . '/lang/');
+        $lang_dir = dirname(plugin_basename(__FILE__)) . '/lang/';
+        if (!load_plugin_textdomain('wputermstoposts', false, $lang_dir)) {
+            load_muplugin_textdomain('wputermstoposts', $lang_dir);
         }
+        $this->plugin_description = __('Link terms to posts from the term edit page.', 'wputermstoposts');
     }
 
     public function admin_init() {
@@ -182,7 +188,7 @@ class WPUTermsToPosts {
         $current_tax = $this->taxonomies[$term->taxonomy];
         foreach ($current_tax['post_types'] as $post_type) {
             if (!isset($_POST['wputermstoposts_' . $post_type])) {
-                return;
+                $_POST['wputermstoposts_' . $post_type] = array();
             }
             $selected_posts = $_POST['wputermstoposts_' . $post_type];
             if (!is_array($selected_posts)) {
